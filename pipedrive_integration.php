@@ -16,4 +16,29 @@ function send_post_request($url, $data) {
     return json_decode($response, true);
 }
 
+ //  Eksempeldata
+ $lead_data = [
+    "name" => "Pål Haugland",
+    "phone" => "12345678",
+    "email" => "paal@haugland.no",
+    "housing_type" => "Enebolig",
+    "property_size" => "160",
+    "deal_type" => "Spotpris",
+    "contact_type" => "Privat"
+ ];
+
+// Opprette organisasjonen
+$org_data = [
+    "name" => "Hauglands kodebureau",
+    "api_token" => $api_key
+];
+
+$response_org = send_post_request("$base_url/organizations", $org_data);
+if (!$response_org['success']) {
+    die("Failed to create organization: " . $response_org['error']);
+}
+$organization_id = $response_org['data']['id'];
+
+
+
 ?>
