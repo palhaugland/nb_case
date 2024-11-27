@@ -39,6 +39,20 @@ if (!$response_org['success']) {
 }
 $organization_id = $response_org['data']['id'];
 
+// Opprette person og knytte til organisasjon
+$person_data = [
+    "name" => $lead_data['name'],
+    "email" => $lead_data['email'],
+    "phone" => $lead_data['phone'],
+    "org_id"  => $lead_data['organization_id'],
+    "api_token" => $api_key
+];
+$response_person = send_post_request("$base_url/persons", $person_data);
+if (!$response_person['success']) {
+    die("Dailed to create person: " . $response_person['error']);
+}
+$person_id = $response_person['data']['id'];
+
 
 
 ?>
