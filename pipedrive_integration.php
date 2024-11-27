@@ -2,7 +2,7 @@
 // Pipedrive API-konfigurasjon
 $api_key = "c4c70b4c5cafa8cbc489a8da6e028153be8c949a";
 
-//Funksjon for å gjøre HTTP POST-request
+// Funksjon for POST-request
 function send_post_request($url, $data) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -53,6 +53,17 @@ if (!$response_person['success']) {
 }
 $person_id = $response_person['data']['id'];
 
+// Opprette lead og knytte til person og organisasjon
+$lead_data = [
+    "title" => "Potensiell lead for Pål Haugland",
+    "person_id" => $person_id,
+    "organization_id" => $organization_id,
+    "api_token" =>  $api_key
+];
+$response_lead = send_post_request("$base_url/leads", $lead_data);
+if(!$response_lead['success']) {
+    die("Failed to create lead: " . $response_lead['error']);
+}
 
-
+echo "Lead created successfully.";
 ?>
