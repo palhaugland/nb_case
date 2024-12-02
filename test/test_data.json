@@ -1,0 +1,17 @@
+{
+    "organization": {
+        "name": "Hauglands Codebureau"
+    },
+    "person": {
+        "name": "Paal Haugland",
+        "email": "paal@haugland.no",
+        "phone": "12345678",
+        "contact_type": 30 
+    },
+    "lead": {
+        "title": "Potential Lead for Pål Haugland",
+        "housing_type": 33,
+        "property_size": 160,
+        "deal_type": 41
+    }
+}
