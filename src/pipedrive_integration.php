@@ -56,15 +56,13 @@ $field_map = [
     'contact_type' => 'fd460d099264059d975249b20e071e05392f329d'
 ];
 
-//funksjon for å sjekke om organisasjonen allerede finnes
+// Funksjon for å finne organisasjon
 function find_organization_by_name($name) {
     global $base_url, $api_key;
 
-    // Søk etter organisasjoner basert på navn
     $url = "$base_url/organizations/search?term=" . urlencode($name) . "&fields=name&api_token=$api_key";
     $response = send_request($url, 'GET');
 
-    // Returner organisasjonens ID hvis den finnes
     if (isset($response['data']['items']) && count($response['data']['items']) > 0) {
         return $response['data']['items'][0]['item']['id'];
     }
@@ -72,13 +70,26 @@ function find_organization_by_name($name) {
     return null; // Organisasjonen finnes ikke
 }
 
+// Funksjon for å finne person
+function find_person_by_email($email) {
+    global $base_url, $api_key;
+
+    $url = "$base_url/persons/search?term=" . urlencode($email) . "&fields=email&api_token=$api_key";
+    $response = send_request($url, 'GET');
+
+    if (isset($response['data']['items']) && count($response['data']['items']) > 0) {
+        return $response['data']['items'][0]['item']['id'];
+    }
+
+    return null; // Personen finnes ikke
+}
+
 try {
-    // Sjekk om organisasjonen allerede finnes
+    // Håndtering av organisasjon
     $org_name = $test_data['organization']['name'];
     $organization_id = find_organization_by_name($org_name);
 
     if (!$organization_id) {
-        // Hvis organisasjonen ikke finnes, opprett en ny
         $org_data = $test_data['organization'];
         $response_org = send_request("$base_url/organizations", 'POST', $org_data);
 
@@ -90,80 +101,55 @@ try {
     } else {
         echo "Organization already exists. Organization ID: $organization_id\n";
     }
-} catch (Exception $e) {
-    log_error($e->getMessage());
-    die($e->getMessage());
 
-// Funksjon for å sjekke om personen allerede finnes
-function find_person_by_email($email) {
-    global $base_url, $api_key;
+    // Håndtering av person
+    $person_email = $test_data['person']['email'];
+    $person_id = find_person_by_email($person_email);
 
-    // Søk etter personer basert på e-post
-    $url = "$base_url/persons/search?term=$email&fields=email&api_token=$api_key";
-    $response = send_request($url, 'GET');
+    if (!$person_id) {
+        $person_data = $test_data['person'];
+        $person_data['org_id'] = $organization_id;
 
-    // Returner personens ID hvis den finnes
-    if (isset($response['data']['items']) && count($response['data']['items']) > 0) {
-        return $response['data']['items'][0]['item']['id'];
-    }
+        unset($person_data['contact_type']); // Fjern nøkkelen 'contact_type'
 
-    return null; // Personen finnes ikke
-}
-
-// Søk etter eksisterende person basert på e-post
-$person_email = $test_data['person']['email'];
-$person_id = find_person_by_email($person_email);
-
-if (!$person_id) {
-    $person_data = $test_data['person'];
-    $person_data['org_id'] = $organization_id;
-
-    // Fjern contact_type og bruk feltkartet
-    unset($person_data['contact_type']);
-
-    // Legg til contact_type med felt-ID
-    if (isset($test_data['person']['contact_type'])) {
-        $contact_type = $test_data['person']['contact_type'];
-        $valid_contact_types = [30, 31, 32];
-        if (in_array($contact_type, $valid_contact_types, true)) {
-            $person_data[$field_map['contact_type']] = $contact_type;
-        } else {
-            throw new Exception("Invalid contact_type value: $contact_type. Allowed values: " . implode(", ", $valid_contact_types));
+        if (isset($test_data['person']['contact_type'])) {
+            $contact_type = $test_data['person']['contact_type'];
+            $valid_contact_types = [30, 31, 32];
+            if (in_array($contact_type, $valid_contact_types, true)) {
+                $person_data[$field_map['contact_type']] = $contact_type;
+            } else {
+                throw new Exception("Invalid contact_type value: $contact_type. Allowed values: " . implode(", ", $valid_contact_types));
+            }
         }
+
+        $response_person = send_request("$base_url/persons", 'POST', $person_data);
+
+        if (!$response_person['success'] || !isset($response_person['data']['id'])) {
+            throw new Exception("Failed to create person: " . json_encode($response_person));
+        }
+        $person_id = $response_person['data']['id'];
+        echo "Person created successfully. Person ID: $person_id\n";
+    } else {
+        echo "Person already exists. Person ID: $person_id\n";
     }
 
-    error_log("Payload for person creation: " . json_encode($person_data));
+    // Håndtering av lead
+    $lead_data = [
+        "title" => $test_data['lead']['title'],
+        "person_id" => $person_id,
+        "organization_id" => $organization_id,
+        $field_map['housing_type'] => $test_data['lead']['housing_type'],
+        $field_map['property_size'] => $test_data['lead']['property_size'],
+        $field_map['deal_type'] => $test_data['lead']['deal_type']
+    ];
 
-    $response_person = send_request("$base_url/persons", 'POST', $person_data);
+    $response_lead = send_request("$base_url/leads", 'POST', $lead_data);
 
-    error_log("Response for person creation: " . json_encode($response_person));
-
-    if (!$response_person['success'] || !isset($response_person['data']['id'])) {
-        throw new Exception("Failed to create person: " . json_encode($response_person));
+    if (!$response_lead['success']) {
+        throw new Exception("Failed to create lead: " . json_encode($response_lead));
     }
-    $person_id = $response_person['data']['id'];
-} else {
-    echo "Person already exists. Person ID: $person_id\n";
-}
+    echo "Lead created successfully. Lead ID: " . $response_lead['data']['id'] . "\n";
 
-// Opprette lead med egendefinerte felter
-$lead_data = [
-    "title" => $test_data['lead']['title'],
-    "person_id" => $person_id,
-    "organization_id" => $organization_id,
-    $field_map['housing_type'] => $test_data['lead']['housing_type'], 
-    $field_map['property_size'] => $test_data['lead']['property_size'],
-    $field_map['deal_type'] => $test_data['lead']['deal_type']
-];
-
-$response_lead = send_request("$base_url/leads", 'POST', $lead_data);
-if (!$response_lead['success']) {
-    throw new Exception("Failed to create lead: " . json_encode($response_lead));
-}
-error_log("Payload: " . json_encode($person_data));
-error_log("Response: " . json_encode($response_person));
-
-echo "Lead created successfully. Lead ID: " . $response_lead['data']['id'] . "\n";
 } catch (Exception $e) {
     log_error($e->getMessage());
     die($e->getMessage());
